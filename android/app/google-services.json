@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "510027281592",
+    "project_id": "filo-app-1a2a5",
+    "storage_bucket": "filo-app-1a2a5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:510027281592:android:d5fe55ef9e03116a04704d",
+        "android_client_info": {
+          "package_name": "com.example.filo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "510027281592-tfmf26j172agvpqivp0hvpaju0k6sju3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.filo",
+            "certificate_hash": "cae66d34a4ff2e2485a3da66a46bb54710d3ff0d"
+          }
+        },
+        {
+          "client_id": "510027281592-rojo7eo61urhrg0spt66i6evc4hlvpdj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGbp_Im9rBgn0kSc-V_LZbbQmJZy03alk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "510027281592-rojo7eo61urhrg0spt66i6evc4hlvpdj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "510027281592-2f7lr4tu3giarkc86dte9dhupjpgr2l7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.filoApplication"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:510027281592:android:1c4eeee3b050880f04704d",
+        "android_client_info": {
+          "package_name": "com.example.filo_application"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "510027281592-rojo7eo61urhrg0spt66i6evc4hlvpdj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGbp_Im9rBgn0kSc-V_LZbbQmJZy03alk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "510027281592-rojo7eo61urhrg0spt66i6evc4hlvpdj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "510027281592-2f7lr4tu3giarkc86dte9dhupjpgr2l7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.filoApplication"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
