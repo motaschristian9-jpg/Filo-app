@@ -5,7 +5,7 @@ Last updated: 2026-09-30
 ## Read this first
 
 Filo is a Flutter mini LMS for **students** and **instructors**. The user is
-currently refining onboarding on a real Android phone, not building the full LMS yet.
+building the instructor class-management side after refining onboarding on a real Android phone.
 
 **Current user instruction: do not run tests, static analysis, builds, browser
 checks, or automated device checks unless the user explicitly asks. The user will
@@ -38,7 +38,7 @@ flowchart TD
     Lookup --> State{Profile status}
     State -->|No role| Role[Learn / Teach]
     State -->|Incomplete| Profile[Complete profile]
-    State -->|Complete| Home[Role-specific dashboard placeholder]
+    State -->|Complete| Home[Instructor classes / student placeholder]
     Role --> Draft[Save role draft locally]
     Draft --> Profile
     Profile --> Save[Merge completed profile into Firestore]
@@ -67,11 +67,16 @@ finishing the preview still restore the dashboard; data isolation remains.
 4. Profile: Google-prefilled display name, read-only Google email, optional school
    and bio; selectable illustrated avatar or existing Google photo.
 5. Welcome: personalized greeting and “Let's go”.
-6. Dashboard: role-specific empty landing state plus temporary onboarding preview.
+6. Instructor dashboard: live class cards, search, Active/Archived filters, create
+   class, and temporary onboarding preview. Student dashboard remains a placeholder.
+7. Class editor: name, subject, section, description, cover color; fixed save button.
+8. Class details: saved metadata, copyable class code, enrolled students, edit,
+   and archive/restore via the class options menu.
 
-Profile photo upload, actual classes, enrollment, learning resources, submissions,
-assessments, and AI are **not implemented**. The dashboard says those tools are
-coming next; do not mistake the placeholders for functioning LMS features.
+Profile photo upload, student class joining, learning resources, submissions,
+assessments, and AI are **not implemented**. Class creation, editing, archive/restore,
+listing, and viewing existing enrollment records are implemented. Copying a class
+code does not implement student redemption; student joining is the next separate flow.
 
 ## Mascot and design
 
@@ -115,6 +120,12 @@ the intro uses it to keep Next/Get started at the same position on every slide.
 | `test/widget_test.dart` | Existing flow/layout/preview tests; do not run unless requested |
 | `assets/fonts/` | Nunito font and open-source license |
 | `README.md` | Run instructions and platform notes |
+| `lib/classes/class_repository.dart` | Firestore class models, owner-filtered streams, writes, roster reads |
+| `lib/classes/instructor_dashboard.dart` | Instructor classes, search, Active/Archived filters, create action |
+| `lib/classes/class_editor.dart` | Create/edit form and shared class cover colors/icons |
+| `lib/classes/class_detail_screen.dart` | Live class details, copy code, roster, edit/archive/restore |
+| `firebase/firestore.rules` | Current class-management Firestore rules source |
+| `firebase/firestore.rules.before-class-management` | Backup of remote rules before the scoped owner-read addition |
 
 ## Firebase and persistence
 
@@ -129,14 +140,58 @@ the intro uses it to keep Next/Get started at the same position on every slide.
 - Role drafts: `filo.profileDraft.<uid>` locally. Drafts resume on the same device;
   completed profiles resume across devices. Unsubmitted profile field edits are
   not autosaved on every keystroke.
-- Existing Firebase rules were inspected and preserved, not deployed/replaced.
-  Existing user roles are immutable after being saved server-side. `roleLocked`
+- Firestore rules are now tracked locally. The class-management update adds a
+  direct `resource.data.instructorId == request.auth.uid` read alternative for
+  owner-filtered list queries, preserving the previous membership authorization
+  and all other rules. Existing user roles are immutable after being saved server-side. `roleLocked`
   prevents showing the profile back action for a loaded server-side role.
 - Existing rules allow signed-in users to read user documents. They are not a
   complete reviewed privacy/security design for the eventual LMS. Review them
   with the actual class/enrollment design before production; do not replace
   existing rules casually while adjusting onboarding UI.
 - Preview profile choices remain in memory and restore the original profile on exit.
+
+
+## Instructor class management
+
+```mermaid
+flowchart LR
+    Dashboard[Your classes] --> Create[Create class]
+    Create --> Save[Firestore classes/documentId]
+    Save --> Details[Class details]
+    Dashboard --> Details
+    Dashboard --> Search[Search name / subject / section]
+    Dashboard --> Filter[Active / Archived]
+    Details --> Edit[Edit class]
+    Details --> Code[Copy class code]
+    Details --> Roster[Existing enrolled students]
+    Details --> Archive[Archive / Restore]
+```
+
+- Instructor route: HomeScreen detects `profile.role == 'instructor'` and shows
+  InstructorDashboard. The existing isolated onboarding preview remains available.
+- Documents: `classes/{id}` with instructorId, name, subject, section, description,
+  color (0-3), archived, createdAt, updatedAt. Old title fields are read as a fallback.
+- List query filters by instructorId only; sorting, archive filtering, and text
+  search happen locally. No new composite index is required.
+- Class codes are the existing unique, case-sensitive Firestore document IDs.
+  They are intentionally longer than an eight-digit code to avoid introducing an
+  unprotected code index or collision-prone short code. No public lookup is allowed.
+- A future student join operation must validate the code and class state on a
+  trusted backend. Do not weaken class reads to make student code lookup work.
+- The current roster reads `classes/{id}/enrollments/{studentUid}` and resolves
+  display names from users. It does not enroll or remove students.
+- Archive is a reversible boolean flag, not deletion. Existing class content and
+  enrollment documents are preserved. It currently organizes the instructor UI;
+  it does not yet enforce a read-only policy across future activities/materials.
+- Create/edit save buttons sit at the bottom. Name is required; other fields are
+  optional. Class options live in the detail screen's upper-right menu.
+- Save waits are bounded to 20 seconds. Firestore can queue a write offline, so
+  timeout copy says the change may complete when reconnected. A form reuses its
+  class document ID for retries to avoid creating a duplicate within that form.
+- Existing instructor dashboard widget tests still reference the old placeholder;
+  when testing is authorized, update their fixture to inject/mock class storage.
+  No tests were changed or executed as part of this feature.
 
 ## Platforms and local environment
 
@@ -173,6 +228,15 @@ Onboarding introduction can be replayed through the dashboard preview button.
 ## Latest changes and validation status
 
 Latest request implemented:
+
+- Added the instructor class-management dashboard, create/edit form, class details,
+  search, active/archive filters, archive/restore, copyable code, and roster view.
+- Google auth, onboarding, minimal copy, color palette, mascot, and preview mode
+  remain in place. Student enrollment and course content are separate next steps.
+- No Flutter tests, analysis, builds, browser automation, or device checks run.
+  The scoped Firestore owner-read rule was deployed successfully to
+  `filo-app-1a2a5` on 2026-09-30. No application data or sample classes were created.
+
 
 - Role selection ("I am here to...") now uses the same fixed FiloFrame footer
   as the intro. Continue stays at the bottom; role cards scroll above it.

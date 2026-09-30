@@ -26,13 +26,16 @@ Firebase project: `filo-app-1a2a5`.
 - Existing user documents are merged, not replaced. Existing server-side role locks are respected.
 - Original Flutter-drawn illustrations, bundled Nunito font, responsive layouts, and reduced-motion support.
 
-The role-specific landing screens are onboarding destinations. Class creation,
-class joining, resources, assessments, and AI study features are not implemented yet.
+Instructors can create, search, view, edit, archive, and restore classes. Class
+details include a copyable class code and a roster of existing enrollments.
+Student class joining, resources, assessments, and AI study features are not
+implemented yet. Class codes are prepared for the future student joining flow.
 
 ## Firebase and native setup
 
 Google authentication and `localhost` were confirmed enabled in the existing project.
-Existing Firestore security rules were inspected and preserved; no rules were deployed.
+Firestore rules are tracked in `firebase/firestore.rules`; the class-management
+change adds direct owner-read authorization for the instructor class query.
 New users can change their draft role before completing their profile. Saved roles
 are immutable under the project's existing rules.
 

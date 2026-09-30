@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../classes/instructor_dashboard.dart';
 
 import 'design.dart';
 import 'illustrations.dart';
@@ -627,6 +628,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final profile = controller.profile!;
     final student = profile.role == 'student';
+    if (!student) return InstructorDashboard(controller: controller);
     return FiloFrame(
       action: TextButton(
         onPressed: controller.busy ? null : controller.signOut,
