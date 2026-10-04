@@ -1,0 +1,25 @@
+project_id = "filo"
+
+[functions.assessment-review]
+verify_jwt = false
+
+[functions.assessment-attempt]
+verify_jwt = false
+
+[functions.quiz-generate]
+verify_jwt = false
+
+[functions.class-join]
+verify_jwt = false
+
+[functions.class-code]
+verify_jwt = false
+
+[functions.material-files]
+# The handler verifies Firebase RS256 tokens and Firestore class permissions.
+# The gateway's Supabase JWT check would reject our existing Firebase login.
+verify_jwt = false
+
+[functions.material-dispatch]
+# Verifies Firebase callers; scheduled calls use a private worker secret.
+verify_jwt = false

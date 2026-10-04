@@ -79,7 +79,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                     const Brand(),
                     const SizedBox(height: 24),
                     if (controller.error == null)
-                      const CircularProgressIndicator()
+                      const FiloSkeleton(layout: SkeletonLayout.rows,
+                        scrollable: false, padding: EdgeInsets.zero)
                     else ...[
                       ErrorNotice(controller.error!),
                       PrimaryButton(

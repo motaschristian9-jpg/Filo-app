@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../classes/instructor_dashboard.dart';
+import '../materials/student_dashboard.dart';
 
 import 'design.dart';
 import 'illustrations.dart';
@@ -625,73 +626,7 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.controller});
   final OnboardingController controller;
   @override
-  Widget build(BuildContext context) {
-    final profile = controller.profile!;
-    final student = profile.role == 'student';
-    if (!student) return InstructorDashboard(controller: controller);
-    return FiloFrame(
-      action: TextButton(
-        onPressed: controller.busy ? null : controller.signOut,
-        child: const Text('Sign out'),
-      ),
-      art: const LearningArt(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ProfileAvatar(
-            avatar: profile.avatar,
-            photoUrl: controller.user!.photoUrl,
-          ),
-          const SizedBox(height: 24),
-          Eyebrow(student ? 'Your learning space' : 'Your teaching space'),
-          const SizedBox(height: 12),
-          Text(
-            'Hello, ${profile.name.split(' ').first}.',
-            style: Theme.of(context).textTheme.headlineLarge,
-          ),
-          const SizedBox(height: 14),
-          const Text('Your space is ready.'),
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: controller.busy ? null : controller.previewOnboarding,
-            icon: const Icon(Icons.replay_rounded),
-            label: const Text('Preview onboarding'),
-          ),
-          const SizedBox(height: 28),
-          if (controller.error != null) ErrorNotice(controller.error!),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: mint,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  student ? Icons.school_outlined : Icons.auto_stories_outlined,
-                  color: teal,
-                  size: 32,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  student
-                      ? 'Your learning starts here'
-                      : 'A place for your first class',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  student
-                      ? 'Classes and your study space are coming next.'
-                      : 'Class tools are coming next.',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => controller.profile!.role == 'instructor'
+      ? InstructorDashboard(controller: controller)
+      : StudentDashboard(controller: controller);
 }

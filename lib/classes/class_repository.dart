@@ -1,21 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import '../materials/supabase_file_storage.dart';
 
 class FiloClass {
   const FiloClass({required this.id, required this.instructorId, required this.name,
     this.subject = '', this.section = '', this.description = '', this.color = 0,
-    this.archived = false, this.createdAt});
-  final String id, instructorId, name, subject, section, description;
+    this.archived = false, this.createdAt, this.code = ''});
+  final String id, instructorId, name, subject, section, description, code;
   final int color;
   final bool archived;
   final DateTime? createdAt;
-  // Use the document ID as the unique, case-sensitive code. No collisions or
-  // public class-code lookup collection is introduced by the instructor UI.
-  String get code => id;
-  factory FiloClass.fromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory FiloClass.fromDocument(DocumentSnapshot<Map<String, dynamic>> doc,
+      {String? code}) {
     final data = doc.data()!;
     return FiloClass(
       id: doc.id, instructorId: data['instructorId'] as String? ?? '',
+      code: code ?? data['code'] as String? ?? '',
       name: data['name'] as String? ?? data['title'] as String? ?? 'Untitled class',
       subject: data['subject'] as String? ?? '', section: data['section'] as String? ?? '',
       description: data['description'] as String? ?? '',
@@ -57,8 +60,47 @@ class ClassRepository {
         return classes;
       });
   Stream<FiloClass?> watchClass(String id) => _classes.doc(id).snapshots()
-      .map((doc) => doc.exists ? FiloClass.fromDocument(doc) : null);
+      .asyncMap((doc) async {
+        if (!doc.exists) return null;
+        final item = FiloClass.fromDocument(doc);
+        if (item.code.isNotEmpty) return item;
+        return FiloClass.fromDocument(doc, code: await _ensureCode(id));
+      });
   String newClassId() => _classes.doc().id;
+
+  Future<String> _ensureCode(String id) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.uid != instructorId) {
+      throw const ClassCodeException('Sign in again to access this class.');
+    }
+    final token = await user.getIdToken();
+    final client = http.Client();
+    try {
+      final response = await client.post(
+        Uri.parse('$supabaseUrl/functions/v1/class-code'),
+        headers: {'apikey': supabasePublishableKey,
+          'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        body: jsonEncode({'classId': id}),
+      ).timeout(const Duration(seconds: 30));
+      if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+        throw const ClassCodeException('Your account changed. Reopen this class.');
+      }
+      if (response.statusCode != 200) {
+        throw const ClassCodeException('Could not prepare the class code. Please retry.');
+      }
+      final code = (jsonDecode(response.body) as Map<String, dynamic>)['code'];
+      if (code is! String || !RegExp(r'^[A-HJ-KM-NP-Z2-9]{6}$').hasMatch(code)) {
+        throw const ClassCodeException('Could not prepare the class code. Please retry.');
+      }
+      return code;
+    } on http.ClientException {
+      throw const ClassCodeException('No connection. Please try again.');
+    } on TimeoutException {
+      throw const ClassCodeException('Class code setup timed out. Please retry.');
+    } finally {
+      client.close();
+    }
+  }
 
   Future<void> create(String id, ClassDraft draft) async {
     // An ID is reserved by the form so retrying never creates a second class.
@@ -87,6 +129,7 @@ class ClassRepository {
 }
 
 String classError(Object error) {
+  if (error is ClassCodeException) return error.message;
   if (error is TimeoutException) return 'Save is taking longer than expected. It may finish when you reconnect.';
   if (error is FirebaseException) {
     return switch (error.code) {
@@ -97,4 +140,9 @@ String classError(Object error) {
     };
   }
   return 'Something went wrong. Please try again.';
+}
+
+class ClassCodeException implements Exception {
+  const ClassCodeException(this.message);
+  final String message;
 }

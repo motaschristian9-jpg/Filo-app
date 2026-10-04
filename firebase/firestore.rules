@@ -30,6 +30,34 @@ service cloud.firestore {
       return isInstructorOf(classId) || isEnrolledIn(classId);
     }
 
+    function validMaterial(classId, materialId, editing) {
+      let d = request.resource.data;
+      return d.keys().hasAll(['title', 'kind', 'body', 'authorId', 'classId', 'url', 'fileName', 'storagePath', 'size', 'createdAt'])
+        && d.keys().hasOnly(['title', 'kind', 'body', 'authorId', 'classId', 'url', 'fileName', 'storagePath', 'size', 'createdAt', 'parentId', 'attachmentIds', 'requiresSubmission', 'maxPoints', 'revisionMinutes', 'dueAt'])
+        && (!('dueAt' in d) || (d.dueAt is timestamp && d.get('requiresSubmission', false) == true
+          && (editing || d.dueAt > request.time)))
+        && (!('requiresSubmission' in d) || (d.requiresSubmission is bool && d.kind == 'announcement' && !('parentId' in d)))
+        && (!('maxPoints' in d) || (d.maxPoints is int && d.maxPoints >= 1 && d.maxPoints <= 1000))
+        && (!('revisionMinutes' in d) || (d.revisionMinutes is int && d.revisionMinutes >= 1 && d.revisionMinutes <= 60))
+        && (!('parentId' in d) || (d.parentId is string && d.parentId.size() > 0
+          && d.parentId.size() <= 128 && d.parentId != materialId && d.kind in ['file', 'link']))
+        && (!('attachmentIds' in d) || (d.kind == 'announcement' && d.attachmentIds is list
+          && d.attachmentIds.size() <= 10 && !('parentId' in d)))
+        && d.classId == classId && d.authorId == request.auth.uid
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.body is string && d.body.size() <= 5000
+        && d.kind in ['file', 'link', 'announcement']
+        && (editing ? d.createdAt == resource.data.createdAt : d.createdAt == request.time)
+        && d.url is string && d.fileName is string && d.storagePath is string
+        && d.size is int
+        && (d.kind == 'file' || (d.kind == 'announcement' && d.storagePath != '')
+          ? d.size > 0 && d.size <= 26214400 && d.fileName.size() > 0 && d.fileName.size() <= 255
+            && d.storagePath.matches('class-materials/' + classId + '/' + materialId + '/[a-f0-9-]{36}') && d.url == ''
+          : d.size == 0 && d.fileName == '' && d.storagePath == '')
+        && (d.kind == 'link' ? d.url.size() <= 2048 && d.url.matches('https://[^ /]+.*') : d.url == '')
+        && (d.kind != 'announcement' || d.body.size() > 0
+          || ('attachmentIds' in d && d.attachmentIds.size() > 0));
+    }
     // --- users/{uid} ---
     match /users/{uid} {
       allow read: if isSignedIn();
@@ -37,6 +65,30 @@ service cloud.firestore {
       // role is set once at signup and should not be self-editable afterward
       allow update: if isOwner(uid) && request.resource.data.role == resource.data.role;
       allow delete: if false;
+
+      match /classes/{classId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+      match /devices/{deviceId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['token', 'updatedAt'])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() > 0
+          && request.resource.data.token.size() <= 1024
+          && request.resource.data.updatedAt == request.time;
+      }
+      match /materialAlerts/{alertId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+    }
+
+    // Collection-group discovery exposes only the caller's own enrollments.
+    // All enrollment writers must keep studentId equal to the document ID.
+    match /{path=**}/enrollments/{studentId} {
+      allow list: if isSignedIn() && resource.data.studentId == request.auth.uid;
     }
 
     // --- classes/{classId} ---
@@ -48,10 +100,11 @@ service cloud.firestore {
                     && request.resource.data.instructorId == request.auth.uid;
       allow update, delete: if isInstructorOf(classId);
 
-      // --- enrollments: instructor manages; a student can add only themself ---
+      // Enrollment creation is restricted to the instructor/trusted join backend.
       match /enrollments/{studentId} {
         allow read: if isClassMember(classId);
-        allow create: if isInstructorOf(classId) || isOwner(studentId);
+        allow create: if isInstructorOf(classId)
+          && request.resource.data.studentId == studentId;
         allow delete: if isInstructorOf(classId) || isOwner(studentId);
         allow update: if false;
       }
@@ -59,7 +112,74 @@ service cloud.firestore {
       // --- materials: instructor writes, class members read ---
       match /materials/{materialId} {
         allow read: if isClassMember(classId);
-        allow write: if isInstructorOf(classId);
+        allow create: if isInstructorOf(classId)
+          && get(/databases/$(database)/documents/classes/$(classId)).data.get('archived', false) == false
+          && validMaterial(classId, materialId, false);
+        // Phase 1 posts are immutable; retries reuse the reserved document ID.
+        allow update: if isInstructorOf(classId) && validMaterial(classId, materialId, true)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'url']);
+        allow delete: if isInstructorOf(classId);
+        match /submissions/{studentId} {
+          function requiredPost() {
+            return get(/databases/$(database)/documents/classes/$(classId)/materials/$(materialId)).data.get('requiresSubmission', false) == true;
+          }
+          function revisionDeadline() {
+            let post = get(/databases/$(database)/documents/classes/$(classId)/materials/$(materialId)).data;
+            let revision = resource.data.get('firstSubmittedAt', resource.data.submittedAt)
+              + duration.value(post.get('revisionMinutes', 5) * 60, 's');
+            return post.get('dueAt', revision) < revision ? post.dueAt : revision;
+          }
+          function beforeDue() {
+            let post = get(/databases/$(database)/documents/classes/$(classId)/materials/$(materialId)).data;
+            return !('dueAt' in post) || request.time < post.dueAt;
+          }
+          function validAttachment(d) {
+            return d is map && d.keys().hasAll(['kind', 'fileName', 'storagePath', 'size', 'url'])
+              && d.keys().hasOnly(['kind', 'fileName', 'storagePath', 'size', 'url'])
+              && d.kind in ['file', 'link'] && d.fileName is string && d.storagePath is string && d.size is int && d.url is string
+              && (d.kind == 'file' ? d.size > 0 && d.size <= 26214400 && d.fileName.size() > 0 && d.fileName.size() <= 255
+                && d.storagePath.matches('class-submissions/' + classId + '/' + materialId + '/' + studentId + '/[a-f0-9-]{36}') && d.url == ''
+                : d.size == 0 && d.fileName == '' && d.storagePath == '' && d.url.size() <= 2048 && d.url.matches('https://[^ /]+.*'));
+          }
+          function attachmentAt(items, i) { return items.size() <= i || validAttachment(items[i]); }
+          function sizeAt(items, i) { return items.size() <= i ? 0 : items[i].size; }
+          function validSubmission() {
+            let d = request.resource.data;
+            let a = d.attachments;
+            return d.keys().hasAll(['studentId', 'attachments', 'status', 'submittedAt', 'firstSubmittedAt'])
+              && d.keys().hasOnly(['studentId', 'attachments', 'status', 'submittedAt', 'firstSubmittedAt'])
+              && d.studentId == studentId && d.status in ['pending', 'editing']
+              && d.firstSubmittedAt is timestamp && d.submittedAt is timestamp
+              && a is list && a.size() >= 1 && a.size() <= 10
+              && attachmentAt(a, 0) && attachmentAt(a, 1) && attachmentAt(a, 2) && attachmentAt(a, 3) && attachmentAt(a, 4)
+              && attachmentAt(a, 5) && attachmentAt(a, 6) && attachmentAt(a, 7) && attachmentAt(a, 8) && attachmentAt(a, 9)
+              && sizeAt(a, 0) + sizeAt(a, 1) + sizeAt(a, 2) + sizeAt(a, 3) + sizeAt(a, 4)
+                + sizeAt(a, 5) + sizeAt(a, 6) + sizeAt(a, 7) + sizeAt(a, 8) + sizeAt(a, 9) <= 52428800;
+          }
+          allow read: if requiredPost() && (isInstructorOf(classId) || (isOwner(studentId) && isEnrolledIn(classId)));
+          allow create: if requiredPost() && isOwner(studentId) && isEnrolledIn(classId) && userRole() == 'student'
+            && beforeDue()
+            && get(/databases/$(database)/documents/classes/$(classId)).data.get('archived', false) == false
+            && validSubmission() && request.resource.data.status == 'pending'
+            && request.resource.data.firstSubmittedAt == request.time
+            && request.resource.data.submittedAt == request.time;
+          allow update: if requiredPost() && isOwner(studentId) && isEnrolledIn(classId) && userRole() == 'student'
+            && beforeDue()
+            && get(/databases/$(database)/documents/classes/$(classId)).data.get('archived', false) == false
+            && resource.data.get('score', null) == null && request.time < revisionDeadline()
+            && validSubmission()
+            && request.resource.data.firstSubmittedAt == resource.data.get('firstSubmittedAt', resource.data.submittedAt)
+            && request.resource.data.submittedAt == resource.data.submittedAt
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments', 'kind', 'url', 'fileName', 'storagePath', 'size', 'status', 'firstSubmittedAt']);
+          allow update: if requiredPost() && isInstructorOf(classId)
+            && request.time >= revisionDeadline()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score', 'feedback', 'gradedAt'])
+            && request.resource.data.score is number && request.resource.data.score >= 0
+            && request.resource.data.score <= get(/databases/$(database)/documents/classes/$(classId)/materials/$(materialId)).data.get('maxPoints', 100)
+            && request.resource.data.feedback is string && request.resource.data.feedback.size() <= 2000
+            && request.resource.data.gradedAt == request.time;
+          allow delete: if false;
+        }
       }
 
       // --- announcements: instructor writes, class members read ---
@@ -87,6 +207,48 @@ service cloud.firestore {
       }
 
       // --- quizzes: instructor writes, class members read ---
+      // Draft questions and answer keys are instructor-only.
+      match /assessmentDrafts/{assessmentId} {
+        allow read: if isInstructorOf(classId);
+        allow delete: if isInstructorOf(classId)
+          && !exists(/databases/$(database)/documents/classes/$(classId)/assessments/$(assessmentId));
+        allow update: if isInstructorOf(classId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title'])
+          && request.resource.data.title is string && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 120;
+        allow create, update: if isInstructorOf(classId)
+          && get(/databases/$(database)/documents/classes/$(classId)).data.get('archived', false) == false
+          && !exists(/databases/$(database)/documents/classes/$(classId)/assessments/$(assessmentId))
+          && request.resource.data.keys().hasOnly(['title', 'kind', 'minutes', 'status', 'questions', 'createdAt', 'updatedAt', 'publishedAt'])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 120
+          && request.resource.data.kind in ['quiz', 'exam']
+          && request.resource.data.minutes is int
+          && request.resource.data.minutes >= 1 && request.resource.data.minutes <= 180
+          && request.resource.data.status == 'draft'
+          && request.resource.data.questions is list
+          && request.resource.data.questions.size() >= 1 && request.resource.data.questions.size() <= 50
+          && request.resource.data.updatedAt == request.time;
+      }
+      match /assessments/{assessmentId} {
+        allow read: if isClassMember(classId);
+        allow create: if isInstructorOf(classId)
+          && get(/databases/$(database)/documents/classes/$(classId)).data.get('archived', false) == false
+          && request.resource.data.keys().hasOnly(['title', 'kind', 'minutes', 'questions', 'publishedAt'])
+          && request.resource.data.title is string
+          && request.resource.data.kind in ['quiz', 'exam']
+          && request.resource.data.minutes is int
+          && request.resource.data.minutes >= 1 && request.resource.data.minutes <= 180
+          && request.resource.data.questions is list
+          && request.resource.data.questions.size() >= 1 && request.resource.data.questions.size() <= 50
+          && request.resource.data.publishedAt == request.time;
+        allow update: if isInstructorOf(classId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'hidden'])
+          && request.resource.data.title is string && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.get('hidden', false) is bool;
+        allow delete: if false;
+      }
       match /quizzes/{quizId} {
         allow read: if isClassMember(classId);
         allow write: if isInstructorOf(classId);

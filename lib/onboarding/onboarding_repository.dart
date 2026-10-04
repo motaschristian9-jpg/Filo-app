@@ -112,7 +112,11 @@ class FirebaseOnboardingRepository implements OnboardingRepository {
   @override
   Future<void> signOut() async {
     await FirebaseAuth.instance.signOut();
-    if (_googleInitialization != null) await GoogleSignIn.instance.signOut();
+    if (_googleInitialization != null) {
+      // Firebase is already signed out; provider cleanup must not keep the UI
+      // on the previous account if the Google plugin fails.
+      try { await GoogleSignIn.instance.signOut(); } catch (_) {}
+    }
   }
 
   @override
@@ -271,6 +275,22 @@ class OnboardingController extends ChangeNotifier {
     if (!isPreview) await repository.saveProfile(user!.uid, next);
     profile = next;
     stage = OnboardingStage.welcome;
+  });
+  Future<void> updateProfile({required String name, required String school,
+    required String bio, required int avatar}) => _perform(() async {
+    if (stage != OnboardingStage.home || user == null || profile == null || isPreview) return;
+    final next = LearnerProfile(
+      role: profile!.role,
+      name: name.trim(),
+      school: school.trim(),
+      bio: bio.trim(),
+      avatar: avatar,
+      complete: true,
+      roleLocked: profile!.roleLocked,
+    );
+    if (next.name.isEmpty) throw const OnboardingException('Add your name.');
+    await repository.saveProfile(user!.uid, next);
+    profile = next;
   });
   void editRole() {
     if (busy) return;

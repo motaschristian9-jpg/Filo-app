@@ -8,6 +8,138 @@ const lime = Color(0xFFE2F3A6);
 const muted = Color(0xFF66756E);
 const line = Color(0xFFDCE3D8);
 
+enum SkeletonLayout { cards, details, profile, preview, rows, author }
+
+class FiloTabs extends StatelessWidget {
+  const FiloTabs({super.key, required this.labels, this.controller,
+    this.scrollable = true});
+  final List<String> labels;
+  final TabController? controller;
+  final bool scrollable;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+    child: Container(padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(color: mint, borderRadius: BorderRadius.circular(20)),
+      child: TabBar(controller: controller, isScrollable: scrollable,
+        tabAlignment: scrollable ? TabAlignment.start : TabAlignment.fill,
+        dividerColor: Colors.transparent, indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(color: Colors.white,
+          border: Border.all(color: line), borderRadius: BorderRadius.circular(15)),
+        labelColor: ink, unselectedLabelColor: muted,
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+        unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 18),
+        splashBorderRadius: BorderRadius.circular(15),
+        tabs: [for (final label in labels) Tab(height: 44, text: label)],
+      )),
+  );
+}
+
+/// Shared content-loading treatment. Use progress indicators for user actions.
+class FiloSkeleton extends StatefulWidget {
+  const FiloSkeleton({super.key, this.layout = SkeletonLayout.cards,
+    this.scrollable = true, this.padding = const EdgeInsets.all(24)});
+  final SkeletonLayout layout;
+  final bool scrollable;
+  final EdgeInsetsGeometry padding;
+  @override
+  State<FiloSkeleton> createState() => _FiloSkeletonState();
+}
+
+class _FiloSkeletonState extends State<FiloSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(vsync: this,
+    duration: const Duration(milliseconds: 1100));
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pulse.stop();
+      _pulse.value = 1;
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    }
+  }
+  @override
+  void dispose() { _pulse.dispose(); super.dispose(); }
+
+  Widget _block(double height, {double? width, double radius = 12}) => Container(
+    height: height, width: width ?? double.infinity,
+    decoration: BoxDecoration(color: line,
+      borderRadius: BorderRadius.circular(radius)));
+
+  Widget _row() => Padding(padding: const EdgeInsets.only(bottom: 18),
+    child: Row(children: [
+      _block(44, width: 44, radius: 22), const SizedBox(width: 14),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+        children: [_block(16), const SizedBox(height: 10),
+          FractionallySizedBox(widthFactor: .55, child: _block(12))])),
+    ]));
+
+  Widget _card() => Container(padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(border: Border.all(color: line),
+      borderRadius: BorderRadius.circular(24)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _block(42, width: 42), const SizedBox(height: 22),
+      FractionallySizedBox(widthFactor: .75, child: _block(20)),
+      const SizedBox(height: 12),
+      FractionallySizedBox(widthFactor: .5, child: _block(13)),
+    ]));
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Padding(padding: widget.padding, child: AnimatedBuilder(
+      animation: _pulse, builder: (context, child) => Opacity(
+        opacity: .45 + .4 * _pulse.value, child: child),
+      child: LayoutBuilder(builder: (context, constraints) {
+        if (widget.layout == SkeletonLayout.author) {
+          return SizedBox(height: 44, child: Row(children: [
+            _block(44, width: 44, radius: 22), const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center, children: [
+                FractionallySizedBox(widthFactor: .55, child: _block(16)),
+                const SizedBox(height: 8),
+                FractionallySizedBox(widthFactor: .35, child: _block(12)),
+              ])),
+          ]));
+        }
+        if (widget.layout == SkeletonLayout.cards) {
+          final columns = constraints.maxWidth >= 900 ? 3
+            : constraints.maxWidth >= 600 ? 2 : 1;
+          final width = (constraints.maxWidth - 16 * (columns - 1)) / columns;
+          return Wrap(spacing: 16, runSpacing: 16, children: [
+            for (var i = 0; i < 3; i++) SizedBox(width: width, child: _card()),
+          ]);
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (widget.layout == SkeletonLayout.profile) ...[
+            Center(child: _block(88, width: 88, radius: 44)),
+            const SizedBox(height: 24),
+          ],
+          if (widget.layout == SkeletonLayout.preview) ...[
+            _block(300, radius: 22), const SizedBox(height: 24),
+          ],
+          if (widget.layout == SkeletonLayout.details) ...[
+            _block(180, radius: 28), const SizedBox(height: 24),
+          ],
+          if (widget.layout != SkeletonLayout.rows) ...[
+            FractionallySizedBox(widthFactor: .65, child: _block(24)),
+            const SizedBox(height: 16), _block(14),
+            const SizedBox(height: 10),
+            FractionallySizedBox(widthFactor: .8, child: _block(14)),
+            const SizedBox(height: 30),
+          ],
+          for (var i = 0; i < 3; i++) _row(),
+        ]);
+      }),
+    ));
+    return Semantics(label: 'Loading content', liveRegion: true,
+      child: ExcludeSemantics(child: widget.scrollable
+        ? SingleChildScrollView(child: content) : content));
+  }
+}
+
 ThemeData filoTheme() => ThemeData(
   useMaterial3: true,
   fontFamily: 'Nunito',

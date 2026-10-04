@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '../onboarding/design.dart';
 import 'class_editor.dart';
 import 'class_repository.dart';
@@ -51,6 +52,28 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not copy. Select the code to copy it.')));
     }
   }
+  bool _sharing = false;
+  Future<void> _share(FiloClass item, BuildContext buttonContext) async {
+    if (_sharing || item.archived || item.code.isEmpty) return;
+    final box = buttonContext.findRenderObject() as RenderBox?;
+    setState(() => _sharing = true);
+    try {
+      await SharePlus.instance.share(ShareParams(
+        title: 'Join my class on Filo',
+        subject: 'Join ${item.name} on Filo',
+        text: 'You’re invited to join ${item.name} on Filo!\n\n'
+          'Class code: ${item.code}\n\n'
+          'Open Filo with your student account, tap Join class, and enter this code.',
+        sharePositionOrigin: box == null ? null
+          : box.localToGlobal(Offset.zero) & box.size,
+      ));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not share. Try copying the code instead.')));
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
   @override
   Widget build(BuildContext context) => StreamBuilder<FiloClass?>(
     stream: _classStream,
@@ -67,12 +90,12 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
             ],
           ),
         ]),
-        body: SafeArea(top: false, child: Center(child: ConstrainedBox(
+        body: SafeArea(top: false, child: Align(alignment: Alignment.topCenter, child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: snapshot.hasError
             ? _loadError()
             : snapshot.connectionState == ConnectionState.waiting && item == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const FiloSkeleton(layout: SkeletonLayout.details)
               : item == null
                 ? const Center(child: Text('This class is no longer available.'))
                 : SingleChildScrollView(padding: const EdgeInsets.all(24), child: Column(
@@ -101,16 +124,25 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                           const Eyebrow('Class code'), const SizedBox(height: 10),
                           SelectableText(item.code, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: ink, letterSpacing: .5)),
                           const SizedBox(height: 12),
-                          OutlinedButton.icon(onPressed: item.archived ? null : () => _copy(item.code),
-                            icon: const Icon(Icons.copy_rounded, size: 18), label: const Text('Copy code')),
+                          Wrap(spacing: 12, runSpacing: 8, children: [
+                            OutlinedButton.icon(onPressed: item.archived ? null : () => _copy(item.code),
+                              icon: const Icon(Icons.copy_rounded, size: 18), label: const Text('Copy code')),
+                            Builder(builder: (buttonContext) => OutlinedButton.icon(
+                              onPressed: item.archived || _sharing || item.code.isEmpty
+                                ? null : () => _share(item, buttonContext),
+                              icon: const Icon(Icons.share_rounded, size: 18),
+                              label: const Text('Share'))),
+                          ]),
                         ])),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 24),
                       Text('Students', style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 14),
                       StreamBuilder<List<ClassMember>>(stream: _membersStream, builder: (context, members) {
                         if (members.hasError) return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const Text('Could not load students.'), TextButton(onPressed: () => setState(() => _membersStream = widget.repository.watchMembers(widget.classId)), child: const Text('Retry')),
                         ]);
-                        if (!members.hasData) return const LinearProgressIndicator();
+                        if (!members.hasData) return const FiloSkeleton(
+                          layout: SkeletonLayout.rows, scrollable: false,
+                          padding: EdgeInsets.zero);
                         if (members.data!.isEmpty) return Container(width: double.infinity,
                           padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: mint, borderRadius: BorderRadius.circular(22)),
                           child: const Column(children: [Icon(Icons.people_outline_rounded, color: teal, size: 30), SizedBox(height: 10), Text('No students yet.')]),

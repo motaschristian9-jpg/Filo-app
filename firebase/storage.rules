@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function owner(classId) {
+      return signedIn() && firestore.get(/databases/(default)/documents/classes/$(classId)).data.instructorId == request.auth.uid;
+    }
+    function member(classId) {
+      return owner(classId) || (signedIn() &&
+        firestore.exists(/databases/(default)/documents/classes/$(classId)/enrollments/$(request.auth.uid)));
+    }
+    match /class-materials/{classId}/{materialId}/attachment {
+      allow read: if member(classId);
+      // Upload first, publish second. Published attachments cannot be replaced.
+      allow create, update: if owner(classId)
+        && firestore.get(/databases/(default)/documents/classes/$(classId)).data.get('archived', false) == false
+        && !firestore.exists(/databases/(default)/documents/classes/$(classId)/materials/$(materialId))
+        && request.resource.size > 0 && request.resource.size <= 26214400
+        && request.resource.contentType == 'application/octet-stream';
+      allow delete: if owner(classId)
+        && !firestore.exists(/databases/(default)/documents/classes/$(classId)/materials/$(materialId));
+    }
+  }
+}
