@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../onboarding/design.dart';
+import '../onboarding/illustrations.dart';
 import 'class_repository.dart';
 
 const classColors = [mint, Color(0xFFE4DFF5), Color(0xFFF6DDC8), Color(0xFFD7ECEB)];
@@ -47,7 +48,11 @@ class _ClassEditorState extends State<ClassEditor> {
     try {
       if (widget.existing == null) { await widget.repository.create(_id, draft); }
       else { await widget.repository.update(_id, draft); }
-      if (mounted) Navigator.pop(context, _id);
+      if (mounted) {
+        if (widget.existing == null) showMascotSuccess(context, 'Class created',
+          expression: MascotExpression.excited);
+        Navigator.pop(context, _id);
+      }
     } catch (error) {
       if (mounted) setState(() { _saving = false; _error = classError(error); });
     }

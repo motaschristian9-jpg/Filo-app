@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../onboarding/design.dart';
+import '../onboarding/illustrations.dart';
 
 import 'material_detail_screen.dart';
 import 'material_composer.dart';
@@ -216,11 +217,6 @@ class _MaterialScreenState extends State<MaterialScreen> {
       'stream' => 'No posts yet.',
       _ => 'No announcements yet.',
     };
-    final icon = switch (kind) {
-      'file' => Icons.folder_open_rounded,
-      'stream' => Icons.forum_outlined,
-      _ => Icons.campaign_outlined,
-    };
     return ListView.builder(key: PageStorageKey('materials-${widget.classId}-$kind'),
       controller: kind == 'file' ? _filesScroll : _streamScroll,
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -235,7 +231,8 @@ class _MaterialScreenState extends State<MaterialScreen> {
         if (index == 1 && visible.isEmpty) return Container(padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(color: mint, borderRadius: BorderRadius.circular(24)),
           child: Column(children: [
-            Icon(icon, size: 40, color: teal),
+            const SizedBox(width: 112, height: 112, child: LearningArt(
+              compact: true, expression: MascotExpression.curious)),
             const SizedBox(height: 12), Text(kind == 'file' && _fileFilter != 'All'
               ? 'No ${_fileFilter.toLowerCase()}${moreRemote ? ' in loaded posts.' : ' yet.'}'
               : moreRemote ? 'No matching items in loaded posts.' : emptyLabel),

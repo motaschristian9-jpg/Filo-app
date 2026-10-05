@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../onboarding/design.dart';
+import '../onboarding/illustrations.dart';
 import 'quiz_repository.dart';
 import 'quiz_source_dialog.dart';
 import 'question_types.dart';
@@ -25,13 +26,14 @@ class _QuizEditorState extends State<QuizEditor> {
   late final List<QuestionDraft> _questions = widget.existing == null ? [QuestionDraft()]
     : (widget.existing!['questions'] as List).map((q) => QuestionDraft(Map<String, dynamic>.from(q as Map))).toList();
   bool _busy = false;
+  bool? _generating;
   String? _error;
   Future<void> _generate() async {
     final input = await showDialog<QuizSource>(context: context,
       builder: (_) => QuizSourceDialog(classId: widget.repository.classId,
         remaining: 50 - _questions.length));
     if (input == null || !mounted) return;
-    setState(() { _busy = true; _error = null; });
+    setState(() { _busy = true; _generating = true; _error = null; });
     try {
       final generated = await widget.repository.generate(input.notes, input.count, input.materialIds, input.counts);
       if (!mounted) return;
@@ -45,7 +47,7 @@ class _QuizEditorState extends State<QuizEditor> {
     } catch (error) {
       if (mounted) setState(() => _error = error is QuizGenerationException
         ? error.message : 'Could not generate. Check your connection and try again.');
-    } finally { if (mounted) setState(() => _busy = false); }
+    } finally { if (mounted) setState(() { _busy = false; _generating = false; }); }
   }
   @override
   void dispose() {
@@ -117,6 +119,12 @@ class _QuizEditorState extends State<QuizEditor> {
         const SizedBox(height: 24),
         OutlinedButton.icon(onPressed: _busy ? null : _generate,
           icon: const Icon(Icons.auto_awesome_rounded), label: const Text('Generate with AI')),
+        if (_generating == true) const Padding(padding: EdgeInsets.only(top: 12),
+          child: Row(children: [
+            SizedBox(width: 72, height: 72, child: LearningArt(
+              compact: true, expression: MascotExpression.curious)),
+            SizedBox(width: 12), Expanded(child: Text('Preparing questions…')),
+          ])),
         if (_busy) const Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator()),
         const SizedBox(height: 20),
         for (var i = 0; i < _questions.length; i++) _question(i),

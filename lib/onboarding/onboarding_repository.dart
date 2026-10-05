@@ -26,7 +26,10 @@ class LearnerProfile {
     this.avatar = -1,
     this.complete = false,
     this.roleLocked = false,
-  });
+    String? photoUrl,
+  }) : _photoUrl = photoUrl;
+  final String? _photoUrl;
+  String? get photoUrl => _photoUrl;
   final String role, name, school, bio;
   final int avatar;
   final bool complete, roleLocked;
@@ -37,6 +40,7 @@ class LearnerProfile {
     'bio': bio,
     'avatar': avatar,
     'complete': complete,
+    if (photoUrl != null) 'photoUrl': photoUrl,
   };
   factory LearnerProfile.fromMap(Map<String, dynamic> data) => LearnerProfile(
     role: data['role'] as String,
@@ -45,6 +49,7 @@ class LearnerProfile {
     bio: data['bio'] as String? ?? '',
     avatar: data['avatar'] as int? ?? -1,
     complete: data['complete'] == true,
+    photoUrl: data['photoUrl'] as String?,
   );
 }
 
@@ -128,6 +133,18 @@ class FirebaseOnboardingRepository implements OnboardingRepository {
     if (snapshot.exists) {
       final data = snapshot.data()!;
       if (data['role'] == 'student' || data['role'] == 'instructor') {
+        // Other users cannot read this account's Firebase Auth photo directly.
+        // Backfill the shared profile for accounts saved before photoUrl existed.
+        final account = FirebaseAuth.instance.currentUser;
+        final photoUrl = account?.photoURL;
+        if (account?.uid == uid && photoUrl != null && photoUrl.isNotEmpty &&
+            data['photoUrl'] == null) {
+          try {
+            await snapshot.reference.set({'photoUrl': photoUrl}, SetOptions(merge: true));
+          } catch (_) {
+            // A photo sync failure must not prevent opening an existing account.
+          }
+        }
         final profile = LearnerProfile.fromMap(data);
         return LearnerProfile(
           role: profile.role,
@@ -137,6 +154,7 @@ class FirebaseOnboardingRepository implements OnboardingRepository {
           avatar: profile.avatar,
           complete: profile.complete,
           roleLocked: true,
+          photoUrl: profile.photoUrl ?? photoUrl,
         );
       }
     }
@@ -157,6 +175,9 @@ class FirebaseOnboardingRepository implements OnboardingRepository {
     }
     await FirebaseFirestore.instance.collection('users').doc(uid).set({
       ...profile.toMap(),
+      if (FirebaseAuth.instance.currentUser?.uid == uid &&
+          FirebaseAuth.instance.currentUser?.photoURL != null && profile.photoUrl == null)
+        'photoUrl': FirebaseAuth.instance.currentUser!.photoURL,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
     await _preferences.remove('filo.profileDraft.$uid');
@@ -266,6 +287,7 @@ class OnboardingController extends ChangeNotifier {
       school: profile?.school ?? '',
       bio: profile?.bio ?? '',
       avatar: profile?.avatar ?? -1,
+      photoUrl: profile?.photoUrl,
     );
     if (!isPreview) await repository.saveProfile(user!.uid, next);
     profile = next;
@@ -277,7 +299,7 @@ class OnboardingController extends ChangeNotifier {
     stage = OnboardingStage.welcome;
   });
   Future<void> updateProfile({required String name, required String school,
-    required String bio, required int avatar}) => _perform(() async {
+    required String bio, required int avatar, String? photoUrl}) => _perform(() async {
     if (stage != OnboardingStage.home || user == null || profile == null || isPreview) return;
     final next = LearnerProfile(
       role: profile!.role,
@@ -285,6 +307,7 @@ class OnboardingController extends ChangeNotifier {
       school: school.trim(),
       bio: bio.trim(),
       avatar: avatar,
+      photoUrl: photoUrl ?? profile!.photoUrl ?? user!.photoUrl,
       complete: true,
       roleLocked: profile!.roleLocked,
     );

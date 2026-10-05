@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../onboarding/design.dart';
+import '../onboarding/illustrations.dart';
 import 'assessment_attempt_screen.dart';
 import 'assessment_review_screen.dart';
 import 'classwork_management.dart';
@@ -40,7 +41,8 @@ class _PublishedAssessmentsState extends State<PublishedAssessments> {
         Container(padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(color: mint, borderRadius: BorderRadius.circular(24)),
           child: const Column(children: [
-            Icon(Icons.assignment_outlined, size: 40, color: teal),
+            SizedBox(width: 112, height: 112, child: LearningArt(
+              compact: true, expression: MascotExpression.curious)),
             SizedBox(height: 12), Text('No classwork yet.'),
           ]))
       else for (final doc in snapshot.data!.docs.where((doc) => doc.data()['hidden'] != true)) Card(child: ListTile(

@@ -1,6 +1,306 @@
 # Filo - Agent Handoff
 
-Last updated: 2026-10-04
+Last updated: 2026-10-05
+
+## Android signing and member distribution prepared - 2026-10-05
+
+- Created local android/signing/filo-testers.jks and android/key.properties with
+  generated password (not printed). Confirmed both are gitignored. Dedicated RSA
+  alias filo-testers; preserve/back up BOTH private files, never regenerate for
+  updates. Public certificate fingerprints and Firebase steps: ANDROID_SIGNING.md.
+- Android release Gradle configuration now loads key.properties and uses release
+  signing, with an explicit missing-config error for requested release tasks.
+  Debug signing remains separate; no build performed.
+- Added .github/workflows/android-testers.yml: manual main-only release, Flutter
+  3.47.6/Java17, locked dependency resolution, signed universal APK, increasing
+  build number 1000+run_number, 14-day APK artifact, official Firebase CLI upload
+  to filo-members using dedicated service account ADC, private file cleanup.
+- CI_CD.md documents three GitHub secrets and console setup; clipboard helper
+  scripts/copy-signing-secret.ps1 avoids printing signing secret values.
+- Pending external setup: fingerprints/refreshed google-services.json, Firebase
+  App Distribution/group/members, dedicated distribution service account and
+  GitHub secrets, commit/push and first workflow run. No gh CLI available locally.
+  No tests/analysis/builds/device checks/workflow execution. Existing backend used,
+  not staging; onboarding preview isolation unchanged. CI quality gates not added.
+
+## Onboarding celebration arm correction - 2026-10-05
+
+- Fixed left shoulder tangent interpolation across the +/-pi boundary: normalize
+  negative left outgoing angles into the same continuous range. Previously a
+  lift could interpolate the long way around and contort the arm between poses.
+- Softened excited celebration on "Small steps. Big wins." and other excited
+  placements to a smaller two-arm cheer with relaxed return. Original character,
+  small body movement and existing randomized eyes preserved.
+- Exported 19141-byte bundled asset with zero errors/warnings; transition and
+  raised-arm PNGs inspected. No Flutter tests/analysis/builds/device checks.
+  Restart app to refresh native asset cache; user reviews live motion manually.
+
+## Varied mascot gestures - 2026-10-05
+
+- Replaced shared waving behavior with expression-specific six-second loops:
+  friendly greeting wave, excited two-arm celebration, curious thinking/eye
+  glance, proud hand-to-chest acknowledgment, and wink relaxed two-arm stretch.
+  Both arms now use anchored path deformation. Existing screen expressions
+  select these gestures without changing Flutter placements or onboarding data.
+- Preserved randomized eye timing, tiny idle rise/fall and centered tilt below
+  one degree. No large body sway or jumps. This supersedes earlier shared-wave
+  descriptions below.
+- Exported bundled 19146-byte Rive asset with zero errors/warnings. Celebration
+  and acknowledgment PNG previews inspected under existing authorization.
+  No Flutter builds/tests/analysis/device checks. Restart app to refresh the
+  native asset cache; live animation remains for user manual review.
+
+## Natural eye timing and restrained body motion - 2026-10-05
+
+- Wink expression no longer permanently closes one eye: friendly/curious/wink
+  eye groups bind scaleY to new MascotData leftEyeOpen/rightEyeOpen numbers,
+  exported defaults 1. Removed deterministic timeline blinks. Runtime schedules
+  events 2.8–7 seconds apart: usually both-eye blink (130ms), sometimes randomly
+  selected single-eye wink (220ms). Restores open eyes, cancels timers when hidden,
+  backgrounded/disposed. Excited/proud retain intentional happy-eye artwork.
+- Added centered body-motion group to avoid outer top-left pivot. Wave body tilt
+  bounded to .012 radians (under 1 degree), returns neutral; idle moves vertically
+  only ±0.5 artboard pixels. Existing deforming arm wave remains. Reduced motion
+  still uses static painter, with no eye timers.
+- Re-exported 15692-byte asset with zero export errors/warnings; open-eye wink
+  pose PNG rendered/inspected using existing authorization. Restart app to refresh
+  native asset cache/new bindings. No Flutter builds/tests/analysis/device checks;
+  randomized live eye timing still for user manual review.
+
+## Arm bending correction - 2026-10-05
+
+- Replaced rigid right-arm rotation with keyed path deformation: shoulder tangent,
+  wrist position and wrist tangent change together through relaxed, partly lifted,
+  raised and waving poses. Shoulder stays anchored; down arm matches left arm's
+  relaxed outward/downward curve. Body stays still; existing six-second timing.
+- Generator arm_poses is distinct from expression poses to avoid name collision.
+  Final 16548-byte Rive asset exported with zero errors/warnings; rest/lowering
+  PNGs rendered and inspected under existing authorization. Restart app for asset
+  cache refresh. No Flutter builds/tests/analysis/device checks.
+
+## Simplified arm wave correction - 2026-10-05
+
+- User reported a pinned/top-left sway. Removed body rotation and vertical
+  motion from all timelines instead of rotating the artwork around its outer
+  origin. Body/feet now stay planted. Left hand stays down; right hand rests
+  down, raises, waves twice, lowers and rests on a six-second repeat. Applies to
+  friendly/excited/proud/wink; curious keeps its still thinking arm. Removed
+  thinking/eye-glance movements; occasional blink and static expressions remain.
+- Re-exported 11136-byte asset, zero export errors/warnings. Hand-down and waving
+  PNGs rendered/inspected under existing authorization. Restart app to clear
+  shared decoded asset cache. No Flutter builds/tests/analysis/device checks.
+
+## More expressive mascot motion - 2026-10-05
+
+- Replaced shared floating idle with five expression-specific six-second motion
+  timelines: friendly multi-swing greeting wave; excited two small jumps with arm
+  lifts; curious side-to-side glance/tilt and thinking-hand movement; proud double
+  nod/hand lift; wink playful sway/wave. Gestures happen early then settle, rather
+  than constantly floating. Expressions/motionEnabled public bindings unchanged.
+- Tapping a loaded Rive mascot briefly switches to wink (or excited from wink),
+  restoring its screen expression after 1.5 seconds. Screen expression changes
+  cancel transient reaction; timer disposed with widget. Decorative/nonessential,
+  no new text or navigation; original reduced-motion fallback remains still.
+- Regenerated script-free asset: 11480 bytes; Rive exports report zero errors and
+  warnings. Wave/jump PNG previews rendered and inspected under prior explicit
+  Rive export/PNG authorization. No Flutter builds/tests/analysis/device checks.
+
+## Mascot placement rollout - 2026-10-05
+
+- User approved the proposed page/modal placements. LearningArt now defaults to
+  Rive everywhere, with explicit useRive:false still available; original painter
+  stays the loading/error/reduced-motion fallback. No asset regeneration needed.
+- Existing intro/login art uses Rive. Role choice is curious before selection and
+  friendly afterward; profile setup friendly, welcome excited. Role/profile get
+  one compact illustration on narrow screens; wide FiloFrame already has its art.
+- Student dashboard gets the same 96px greeting mascot as instructor (curious
+  search, proud enrolled classes, friendly otherwise). Replaced student empty-list
+  mascot with a simple icon to avoid doubling it in the greeting/list section.
+- Materials Stream/Files and empty Classwork cards use a compact curious mascot.
+  Empty notifications uses friendly art only when actually empty, not on loading
+  or errors. Existing assessment completion's proud art now uses Rive too.
+- Shared showMascotSuccess adds a 56px proud/excited mascot to short three-second
+  snackbars after successful class join, new class creation and committed work
+  submission. No additional success modal/navigation delay. Submission transaction
+  returns a boolean to avoid claiming success when a concurrent submission made
+  it a no-op; deadline/storage/grade authorization unchanged.
+- AI quiz editor shows curious art + Preparing questions only while generating,
+  alongside existing progress indicator. Saves do not show this reaction. No
+  mascot added to destructive confirmations, grade forms or error messages.
+- No tests, static analysis, app/Rive builds, browser automation or device checks
+  run for this placement rollout. Manual runtime/mobile layout review remains.
+  Backend, offline sync, notification read-state and preview data isolation retained.
+
+## Rive preparation - 2026-10-05
+
+- Initial implementation completed after user requested plan implementation and
+  explicitly authorized Rive export + PNG previews only. Editable mascot project
+  is animations/filo_mascot/scene.rml; generate_source.py recreates source geometry
+  from original painter (overwrites hand edits). README.md records authoring/API.
+- Exported assets/animations/filo_mascot.riv: 7528 bytes, script-free vector shapes,
+  FiloMascot artboard / Mascot state machine / MascotData exported Default model.
+  expression number 0 friendly, 1 excited, 2 curious, 3 proud, 4 wink; motionEnabled
+  boolean. Five poses crossfade over 180ms, curious has a tilt, four-second idle
+  loop bobs/blinks and briefly waves per cycle. PNG previews rendered and visually
+  inspected for all five poses in artifacts/rive. Final exports report zero errors
+  and warnings. No publishing, Rive login or persistent preview window.
+- Added rive ^0.14.11, resolved rive 0.14.11 / rive_native 0.1.11 using flutter pub
+  get (also updated generated native plugin registrations). Asset registered.
+  LearningArt retains scene/compact/expression and adds useRive opt-in. Enabled
+  only on instructor dashboard/archived page pending manual in-app appearance
+  review; other existing mascot placements keep painter for staged rollout.
+- lib/onboarding/rive_mascot.dart loads/caches file while mounted, per-widget
+  controller/model, disposes when last user unmounts, drives data binding, pauses
+  under covered routes/TickerMode/app background. Uses Flutter renderer. Existing
+  painter is fallback during load/error and for reduced motion. Native init stays
+  lazy and cannot block login. Existing preview isolation and backend unchanged.
+- No Flutter builds, tests, analysis, browser automation or device checks run.
+  Runtime integration remains unverified on Android/web. User must stop/restart
+  app with new native dependency (hot reload insufficient), review instructor
+  normal/search/archived poses and lifecycle/reduced motion before broader rollout.
+
+- User requested a Rive animation plan and authorized CLI installation. Official
+  Windows x64 Rive CLI 1.3.0 installed workspace-locally at
+  artifacts/rive/cli-1.3.0/rive.exe, with bundled docs/samples. Archive SHA-256
+  matched the official manifest; --version returned rive 1.3.0. No global PATH
+  modification, login, publishing, project scaffolding or animation export.
+  artifacts/rive is gitignored. The downloaded installer was inspected, but the
+  actual install used direct verified extraction rather than executing it.
+- RIVE_PLAN.md defines staged original mascot recreation, expression/state
+  machine/motion design, later Flutter integration behind LearningArt, manual
+  review and fallback/reduced-motion requirements. Read generated animation
+  project instructions once scaffolding is authorized. Preserve original design
+  per MASCOT.md, existing placements and onboarding preview isolation.
+- No Flutter dependency/UI changes, tests, analysis, app/animation builds,
+  browser automation or device checks. Implementation is deferred; CLI version
+  read is installation confirmation only. Use full executable path in PowerShell.
+
+## Student header spacing and bell - 2026-10-05
+
+- Fixed reported compile error in unread indicator: Semantics is not a const
+  constructor; moved const to its child Icon. No automated checks run.
+
+- Added unread/read styling for recent updates: unread mint bordered cards, bold
+  title, active bell and red dot; read white cards, regular title and check icon.
+  Dashboard bell shows active icon/red dot while any newest-30 update is unread.
+  Opening sheet alone does not mark read. Tapping update or opening its push/View
+  action marks only that material read. Markers use classId/materialId.
+- NotificationReadState persists markers with SharedPreferencesAsync, scoped to
+  uid on this device, not synced between devices. No backend/rules deployment.
+  Existing posts without markers start unread. Load failure offers Retry read
+  status; write failures revert marker and show message. Badge waits for saved
+  state to load. Both bell and sheet listen to sync/read changes. No checks run.
+
+- Student dashboard now uses the instructor's padded Brand/actions header rather
+  than AppBar: 24/16/16/4 header padding, 24px content padding, 96px greeting area,
+  20px search gap and 24px card gap. Matches 1100px content width and responsive
+  one/two/three-column grid. No student mascot added to greeting.
+- Bell beside profile opens Notifications bottom sheet labeled Recent class
+  updates: newest 30 parent material posts from existing MaterialSync data across
+  enrolled classes, opening the class on tap. Excludes child attachments. This is
+  a recent-updates view, not persisted FCM history/unread tracking; no badge or
+  read-state writes. No new backend/query. Shows empty/loading/error states and
+  existing notification-permission retry when needed. Push and sync unchanged.
+- No tests, analysis, builds, browser automation or automated device checks run.
+
+## Separate instructor archive page - 2026-10-05
+
+- Removed Active/Archived filter chips from instructor dashboard. Main Your
+  classes now shows only active classes. Archive icon beside the account avatar
+  opens a separate Archived classes route with back navigation and its own search.
+  Reuses InstructorDashboard via archivedOnly flag and the same card design/live
+  student counts; archive page hides Create class. Opening a class retains existing
+  archived read-only room behavior and class-details restore action. Restoring
+  removes the class from archive and returns it to the main live list.
+- Student UI and onboarding preview isolation untouched. No tests, analysis,
+  builds, browser automation or automated device checks run.
+
+## Instructor card information - 2026-10-05
+
+- Latest user refinement supersedes status/code footer: instructor banner now
+  shows subject directly beneath class name, followed by a distinct section if
+  present. White body has a short description (No description yet fallback).
+  Footer shows live enrolled student count with people icon instead of status/code.
+  watchStudentCount reads enrollment snapshots only, with no student profile
+  lookups; one stable stream per displayed class card, removed with that card.
+  Loading/error states do not claim zero students. Active/Archived dashboard filters
+  remain. Shared ClassCard gains optional bannerSubtitle; students unchanged.
+  No tests, analysis, builds or automated UI/device checks run.
+
+- Instructor cards retain the shared colored banner, rounded border, white body,
+  divided footer and navigation arrow. Body now has a labeled subject (Not set
+  when missing) and optional two-line class description. Footer replaces the
+  instructor's own name with Active/Archived status and the saved class code.
+  Missing codes are omitted; dashboard does not trigger code assignment or new
+  queries. Class name/unique section remain in banner; student layout unchanged.
+- ClassCard accepts optional details/footerContent widgets to reuse its visual
+  structure for the instructor variant. Footer wraps on narrow cards. No tests,
+  analysis, builds, browser automation or device checks run.
+
+## Gallery profile photos - 2026-10-05
+
+- Edit profile > Change avatar now offers Choose from gallery using existing
+  file_picker 13.1.0 image filtering (native system photo/file chooser).
+  Selection is staged/previewed until Save changes; cancel leaves saved data alone.
+  Original selection bounded to 10 MB, decoded to a 128px thumbnail, encoded PNG
+  bounded to 64 KB and saved as a data:image/png;base64 photoUrl in users/{uid}.
+  This deliberately uses a small shared profile thumbnail, no new bucket/backend,
+  full-size photo storage, dependency or deployment. Profile reads include these
+  bytes. Native photo-provider availability depends on the system chooser.
+- LearnerProfile carries optional photoUrl through loading/editing; account and
+  shared ProfileAvatar display gallery data via Image.memory. AuthorCache consumers
+  including student class cards and post authors use the same saved photoUrl.
+  Google photo and illustrated choices remain; choosing Google resets staged URL.
+  Google Auth backfill now only fills a missing URL so it cannot replace gallery
+  photos on login. Picker/save/back are guarded during image processing; image
+  errors produce a short message and do not overwrite the saved profile.
+- No tests, static analysis, builds, browser automation or device checks run.
+
+## Dashboard class banners - 2026-10-05
+
+- Fixed missing shared instructor photos: account UI used Firebase Auth photoURL,
+  but FirebaseOnboardingRepository did not persist it in users/{uid}. Completed
+  profile saves now include the caller's Auth photoUrl. Loading an existing valid
+  profile backfills changed/missing photoUrl from that same signed-in account,
+  with photo-sync failures caught to preserve login. No remote migration run;
+  an existing instructor must reopen/restart the updated app or save their profile
+  for students to receive the photo through AuthorCache. Student card avatar
+  defaults to -1 (Google photo), matching LearnerProfile, while respecting saved
+  illustrated avatar choices. Preview repository/controller isolation retained.
+  No tests, analysis, builds, browser or device checks run.
+
+- Student cards now show instructor name and ProfileAvatar inside the colored
+  banner, directly below class name/section (corrected placement per user).
+  Banner height grows with content. Reuses session-scoped AuthorCache so classes
+  with the same instructor share one live profile subscription; existing loading
+  skeleton and Instructor/default-avatar fallbacks handle unavailable profiles.
+  StudentClass reads instructorId from the existing class listener through a
+  nullable-backed safe getter. Both cards omit section when it matches class name
+  (ignoring case/surrounding spaces), so BSIT-3A appears once. No checks run.
+
+- Follow-up null String error: likely hot-reload retention of StudentClass
+  instances/student dashboard state created before the new fields existed.
+  Metadata now uses nullable backing fields with non-null default getters;
+  student search state also defaults null to an empty query. Constructor/API
+  defaults and Firestore fallbacks remain. A hot restart recreates old state.
+  No stack trace supplied, so exact failing getter is not confirmed. No checks run.
+
+- Student dashboard now has a short personalized greeting below Your classes
+  and Find a class search, matching the instructor dashboard. Both searches
+  match name, subject, and section locally using their existing class streams.
+  Student filtering does not affect enrollment discovery, notification opening,
+  or MaterialSync; background downloads still cover all enrolled classes.
+- Shared `lib/classes/class_card.dart` replaces both dashboard card styles with
+  a colored banner, class name and section, subtle subject icon artwork, subject
+  body, and separated footer/navigation arrow. Uses the existing Filo palette
+  and saved cover choice. Instructor footer shows their name; student footer
+  retains material counts. Archived cards show Archived. Responsive grids use
+  one column on phones, two on wider student screens, up to three for instructors.
+- StudentClass now reads subject, section, and color from the existing class
+  document listener with defaults for older records; no extra queries/schema
+  changes. Onboarding preview support and data isolation are untouched.
+- No tests, static analysis, builds, browser automation, or device checks run;
+  user will review manually.
 
 ## Read this first
 

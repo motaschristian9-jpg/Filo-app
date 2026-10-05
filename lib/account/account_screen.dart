@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:file_picker/file_picker.dart';
 import '../onboarding/design.dart';
 import '../onboarding/onboarding_repository.dart';
 
@@ -16,7 +20,7 @@ class AccountButton extends StatelessWidget {
       MaterialPageRoute<void>(builder: (_) =>
         AccountScreen(controller: controller, onSignOut: onSignOut))),
     icon: ProfileAvatar(avatar: controller.profile!.avatar,
-      photoUrl: controller.user?.photoUrl, size: 42),
+      photoUrl: controller.profile!.photoUrl ?? controller.user?.photoUrl, size: 42),
   );
 }
 
@@ -61,7 +65,7 @@ class AccountScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28)),
               child: Row(children: [
                 ProfileAvatar(avatar: profile.avatar,
-                  photoUrl: controller.user!.photoUrl, size: 76),
+                  photoUrl: profile.photoUrl ?? controller.user!.photoUrl, size: 76),
                 const SizedBox(width: 18),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -124,6 +128,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   final _form = GlobalKey<FormState>();
   late final TextEditingController _name, _school, _bio;
   late int _avatar;
+  String? _photoUrl;
+  bool? _pickingValue;
+  bool get _picking => _pickingValue ?? false;
+  set _picking(bool value) => _pickingValue = value;
 
   @override
   void initState() {
@@ -133,6 +141,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     _school = TextEditingController(text: profile.school);
     _bio = TextEditingController(text: profile.bio);
     _avatar = profile.avatar;
+    _photoUrl = profile.photoUrl ?? widget.controller.user?.photoUrl;
   }
 
   @override
@@ -150,6 +159,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('Pick your look', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 20),
+        TextButton.icon(icon: const Icon(Icons.photo_library_outlined),
+          label: const Text('Choose from gallery'), onPressed: () {
+            Navigator.pop(sheetContext);
+            _pickPhoto();
+          }),
+        const SizedBox(height: 12),
         Wrap(spacing: 12, runSpacing: 12, children: [
           for (final choice in [
             if (widget.controller.user?.photoUrl != null) -1, 0, 1, 2, 3
@@ -159,7 +174,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             child: InkWell(
               borderRadius: BorderRadius.circular(40),
               onTap: () {
-                setState(() => _avatar = choice);
+                setState(() {
+                  _avatar = choice;
+                  if (choice == -1) _photoUrl = widget.controller.user?.photoUrl;
+                });
                 Navigator.pop(sheetContext);
               },
               child: Container(padding: const EdgeInsets.all(3),
@@ -174,11 +192,51 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     )),
   );
 
+  Future<void> _pickPhoto() async {
+    if (_picking || widget.controller.busy) return;
+    setState(() => _picking = true);
+    try {
+      final file = await FilePicker.pickFile(type: FileType.image);
+      if (file == null || !mounted) return;
+      final size = await file.length();
+      if (size == null || size <= 0 || size > 10 * 1024 * 1024) {
+        throw StateError('Choose a photo up to 10 MB.');
+      }
+      final buffer = BytesBuilder(copy: false);
+      await for (final chunk in file.readAsByteStream()) {
+        if (!mounted) return;
+        if (buffer.length + chunk.length > 10 * 1024 * 1024) {
+          throw StateError('Choose a photo up to 10 MB.');
+        }
+        buffer.add(chunk);
+      }
+      final codec = await ui.instantiateImageCodec(buffer.takeBytes(),
+        targetWidth: 128, targetHeight: 128, allowUpscaling: false);
+      ui.Image? image;
+      try {
+        image = (await codec.getNextFrame()).image;
+        final encoded = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (encoded == null || encoded.lengthInBytes > 64 * 1024) {
+          throw StateError('Choose a smaller photo.');
+        }
+        if (!mounted) return;
+        setState(() {
+          _photoUrl = 'data:image/png;base64,${base64Encode(encoded.buffer.asUint8List(encoded.offsetInBytes, encoded.lengthInBytes))}';
+          _avatar = -1;
+        });
+      } finally { image?.dispose(); codec.dispose(); }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error is StateError ? error.message.toString() : 'Could not open this photo. Try another.')));
+    } finally { if (mounted) setState(() => _picking = false); }
+  }
+
   Future<void> _save() async {
-    if (!_form.currentState!.validate() || widget.controller.busy) return;
+    if (!_form.currentState!.validate() || widget.controller.busy || _picking) return;
     FocusScope.of(context).unfocus();
     await widget.controller.updateProfile(
-      name: _name.text, school: _school.text, bio: _bio.text, avatar: _avatar);
+      name: _name.text, school: _school.text, bio: _bio.text, avatar: _avatar,
+      photoUrl: _photoUrl);
     if (mounted && widget.controller.error == null) Navigator.pop(context);
   }
 
@@ -186,7 +244,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.controller,
     builder: (context, _) => PopScope(
-      canPop: !widget.controller.busy,
+      canPop: !widget.controller.busy && !_picking,
       child: Scaffold(
         appBar: AppBar(title: const Text('Edit profile')),
         body: SafeArea(child: Center(child: ConstrainedBox(
@@ -195,9 +253,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             Expanded(child: ListView(padding: const EdgeInsets.all(24), children: [
               Center(child: Column(children: [
                 ProfileAvatar(avatar: _avatar,
-                  photoUrl: widget.controller.user?.photoUrl, size: 90),
+                  photoUrl: _photoUrl, size: 90),
                 const SizedBox(height: 8),
-                TextButton(onPressed: widget.controller.busy ? null : _chooseAvatar,
+                TextButton(onPressed: widget.controller.busy || _picking ? null : _chooseAvatar,
                   child: const Text('Change avatar')),
               ])),
               const SizedBox(height: 20),
@@ -228,8 +286,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             ])),
             Padding(padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
               child: PrimaryButton(label: 'Save changes', icon: Icons.check_rounded,
-                busy: widget.controller.busy,
-                onPressed: widget.controller.busy ? null : _save)),
+                busy: widget.controller.busy || _picking,
+                onPressed: widget.controller.busy || _picking ? null : _save)),
           ]),
         ))),
       ),

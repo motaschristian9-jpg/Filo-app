@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "510027281592-sbm8mh6esvusqbqr08kfjbloeh05eu49.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.filo",
+            "certificate_hash": "b506778353593c58575a1dc3bdd382c508ec4454"
+          }
+        },
+        {
           "client_id": "510027281592-tfmf26j172agvpqivp0hvpaju0k6sju3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

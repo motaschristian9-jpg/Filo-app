@@ -2,8 +2,20 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentClass {
-  const StudentClass(this.id, this.name, this.archived);
+  const StudentClass(this.id, this.name, this.archived,
+    {String subject = '', String section = '', int color = 0,
+    String instructorId = ''})
+    : _subject = subject, _section = section, _color = color,
+      _instructorId = instructorId;
   final String id, name;
+  // Hot reload retains instances created before these metadata fields existed.
+  // Default getters also keep those retained instances safe to render.
+  final String? _subject, _section, _instructorId;
+  final int? _color;
+  String get subject => _subject ?? '';
+  String get section => _section ?? '';
+  int get color => _color ?? 0;
+  String get instructorId => _instructorId ?? '';
   final bool archived;
 }
 
@@ -65,7 +77,11 @@ class StudentClasses {
             if (data != null) {
               values[entry.key] = StudentClass(entry.key,
                 data['name'] as String? ?? data['title'] as String? ?? 'Class',
-                data['archived'] == true);
+                data['archived'] == true,
+                subject: data['subject'] as String? ?? '',
+                section: data['section'] as String? ?? '',
+                instructorId: data['instructorId'] as String? ?? '',
+                color: data['color'] is num ? (data['color'] as num).toInt() : 0);
             } else if (!doc.metadata.isFromCache) {
               values.remove(entry.key);
             }

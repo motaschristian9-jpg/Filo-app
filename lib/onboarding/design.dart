@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 const ink = Color(0xFF183D38);
 const teal = Color(0xFF246B58);
@@ -435,7 +436,10 @@ class ProfileAvatar extends StatelessWidget {
         border: Border.all(color: Colors.white, width: 3),
       ),
       child: avatar == -1 && photoUrl != null
-          ? Image.network(
+          ? photoUrl!.startsWith('data:image/png;base64,')
+            ? Image.memory(base64Decode(photoUrl!.substring('data:image/png;base64,'.length)),
+                fit: BoxFit.cover, errorBuilder: (_, error, stack) => fallback)
+            : Image.network(
               photoUrl!,
               fit: BoxFit.cover,
               errorBuilder: (_, error, stack) => fallback,

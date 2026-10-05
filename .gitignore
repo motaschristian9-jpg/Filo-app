@@ -54,3 +54,6 @@ app.*.map.json
 
 /supabase/.temp/
 /supabase/.branches/
+
+# Downloaded Rive authoring tools and release archives
+/artifacts/rive/

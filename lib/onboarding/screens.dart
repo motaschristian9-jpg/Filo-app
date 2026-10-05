@@ -240,7 +240,8 @@ class _RoleScreenState extends State<RoleScreen> {
       onPressed: widget.controller.busy ? null : widget.controller.signOut,
       child: const Text('Sign out'),
     ),
-    art: LearningArt(scene: _selected == 'instructor' ? 1 : 0),
+    art: LearningArt(expression: _selected == null
+      ? MascotExpression.curious : MascotExpression.friendly),
     footer: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -259,6 +260,12 @@ class _RoleScreenState extends State<RoleScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SetupProgress(1),
+        if (MediaQuery.sizeOf(context).width < 850) ...[
+          const SizedBox(height: 12),
+          Center(child: SizedBox(width: 128, height: 128,
+            child: LearningArt(compact: true, expression: _selected == null
+              ? MascotExpression.curious : MascotExpression.friendly))),
+        ],
         const SizedBox(height: 32),
         Text(
           'I am here to...',
@@ -469,13 +476,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onPressed: widget.controller.busy ? null : widget.controller.signOut,
       child: const Text('Sign out'),
     ),
-    art: const LearningArt(scene: 2),
+    art: const LearningArt(expression: MascotExpression.friendly),
     child: Form(
       key: _form,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SetupProgress(2),
+          if (MediaQuery.sizeOf(context).width < 850) ...[
+            const SizedBox(height: 12),
+            const Center(child: SizedBox(width: 112, height: 112,
+              child: LearningArt(compact: true, expression: MascotExpression.friendly))),
+          ],
           const SizedBox(height: 28),
           Text(
             'Let\'s make it yours.',
@@ -604,11 +616,11 @@ class WelcomeScreen extends StatelessWidget {
   final OnboardingController controller;
   @override
   Widget build(BuildContext context) => FiloFrame(
-    art: const LearningArt(expression: MascotExpression.proud),
+    art: const LearningArt(expression: MascotExpression.excited),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (MediaQuery.sizeOf(context).width < 850) const LearningArt(expression: MascotExpression.proud),
+        if (MediaQuery.sizeOf(context).width < 850) const LearningArt(expression: MascotExpression.excited),
         Text(
           'You are in, ${controller.profile!.name.split(' ').first}!',
           style: Theme.of(context).textTheme.headlineLarge,

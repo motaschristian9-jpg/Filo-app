@@ -115,6 +115,9 @@ class ClassRepository {
   Future<void> setArchived(String id, bool archived) => _classes.doc(id).update({
     'archived': archived, 'updatedAt': FieldValue.serverTimestamp(),
   }).timeout(const Duration(seconds: 20));
+  Stream<int> watchStudentCount(String id) => _classes.doc(id)
+      .collection('enrollments').snapshots().map((snapshot) => snapshot.size);
+
   Stream<List<ClassMember>> watchMembers(String id) => _classes.doc(id)
       .collection('enrollments').snapshots().asyncMap((snapshot) async {
         final members = await Future.wait(snapshot.docs.map((enrollment) async {

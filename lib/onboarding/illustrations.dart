@@ -1,20 +1,50 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'design.dart';
+import 'rive_mascot.dart';
 
 /// Filo's original folded-file mascot. All artwork is resolution-independent.
 enum MascotExpression { friendly, excited, curious, proud, wink }
 
-class LearningArt extends StatefulWidget {
-  const LearningArt({super.key, this.scene = 0, this.compact = false, this.expression});
+class LearningArt extends StatelessWidget {
+  const LearningArt({super.key, this.scene = 0, this.compact = false,
+    this.expression, this.useRive = true});
+  final int scene;
+  final bool compact, useRive;
+  final MascotExpression? expression;
+  @override
+  Widget build(BuildContext context) {
+    final pose = expression ?? const [MascotExpression.friendly,
+      MascotExpression.excited, MascotExpression.curious][scene % 3];
+    final fallback = _PaintedLearningArt(scene: scene, compact: compact, expression: pose);
+    if (!useRive || MediaQuery.disableAnimationsOf(context)) return fallback;
+    return RiveMascot(expression: pose.index, compact: compact, fallback: fallback);
+  }
+}
+
+void showMascotSuccess(BuildContext context, String message,
+    {MascotExpression expression = MascotExpression.proud}) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    duration: const Duration(seconds: 3),
+    content: Row(children: [
+      SizedBox(width: 56, height: 56,
+        child: LearningArt(compact: true, expression: expression)),
+      const SizedBox(width: 12),
+      Expanded(child: Text(message)),
+    ]),
+  ));
+}
+
+class _PaintedLearningArt extends StatefulWidget {
+  const _PaintedLearningArt({this.scene = 0, this.compact = false, this.expression});
   final int scene;
   final bool compact;
   final MascotExpression? expression;
   @override
-  State<LearningArt> createState() => _LearningArtState();
+  State<_PaintedLearningArt> createState() => _LearningArtState();
 }
 
-class _LearningArtState extends State<LearningArt> with SingleTickerProviderStateMixin {
+class _LearningArtState extends State<_PaintedLearningArt> with SingleTickerProviderStateMixin {
   late final AnimationController _motion = AnimationController(
     vsync: this, duration: const Duration(seconds: 4),
   );

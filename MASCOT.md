@@ -4,6 +4,28 @@ Filo's mascot is an original little folded-file character. It represents learnin
 materials brought to life: approachable, curious, and quietly proud of progress.
 Its name has not been chosen yet.
 
+## Rive implementation (2026-10-05)
+
+LearningArt now uses Rive by default across the approved placements. Pass
+useRive:false to explicitly select the original painter. Both preserve this same
+character. Reduced motion and asset/runtime loading failures use the painter.
+
+Editable source: animations/filo_mascot/scene.rml. Bundled runtime asset:
+assets/animations/filo_mascot.riv. Runtime: rive 0.14.11; CLI: 1.3.0.
+Artboard FiloMascot, state machine Mascot, view model MascotData. Its expression
+number follows MascotExpression.index; motionEnabled controls decorative motion.
+Includes five poses and 180ms expression transitions. Six-second gesture loops
+vary by expression: friendly waves, excited raises both arms to celebrate,
+curious thinks with small eye glances, proud brings a hand toward its chest with
+a tiny acknowledgment tilt, and wink gently stretches both arms. Arms bend
+through path deformation with anchored shoulders. Body motion stays restrained
+to ±0.5px idle rise/fall and under-one-degree centered gesture tilt.
+Wink pose opens both eyes between randomized brief blinks/winks; excited/proud
+retain happy curved eyes. Tap for a brief playful/excited reaction, then return to
+the current screen pose. App background/covered routes pause
+Rive playback. Authoring commands and regeneration caveats are in the animation
+project README.md. Do not run exports/previews or app checks without authorization.
+
 ## Appearance
 
 - A rounded lime paper body with a slightly offset darker page behind it.
@@ -39,7 +61,7 @@ Keep these colors and the folded-file silhouette consistent across screens.
 | Excited | Closed happy eyes, a wide open smile, raised arms, and small sparkles |
 | Curious | Tilted head, uneven eye position, raised eyebrow, small round mouth, and a thinking pose |
 | Proud | Closed smiling eyes, a bigger curved smile, and small sparkles |
-| Wink | One closed eye, a smile, and a playful wave |
+| Wink | Open eyes between occasional winks, a smile, and a relaxed arm stretch |
 
 The mascot encourages without judging. Use a curious expression during searching,
 a friendly expression when welcoming someone, and a proud expression around
@@ -47,7 +69,7 @@ their work. Avoid guilt, exaggerated sadness, or distracting reactions to errors
 
 ## Movement
 
-The character gently bobs and waves. Expression changes crossfade and head tilts
+The character uses a different restrained gesture for each expression. Changes crossfade and head tilts
 ease into position. Flutter's reduced-motion preference stops decorative movement.
 The illustration is excluded from screen-reader semantics because surrounding
 UI already communicates the screen's purpose.
@@ -61,7 +83,22 @@ existing active classes, and friendly otherwise.
 
 Keep the mascot small around working tools and larger in onboarding or a dedicated
 celebration. Use one illustration in a local section so the class list stays clear.
-Student mascot placement is deferred until that interface is developed further.
+Student dashboard now uses the same greeting placement and search reaction.
+Its empty class list uses an icon so the mascot is not repeated in that section.
+
+## Other placements
+
+- Intro and login: existing hero placement; role selection curious/friendly.
+- Profile setup: friendly; compact art on phones, existing side art on wide screens.
+- Welcome: excited. Assessment completion: proud regardless of score.
+- Join class: curious. Stream/Files/Classwork empty cards: compact curious art.
+- Empty notifications: compact friendly art, only after updates have loaded.
+- Class join/create and committed work submission: brief mascot in existing
+  snackbar pattern, with no extra modal or delay before opening the class.
+- AI question generation: curious art beside progress while the request runs.
+
+Keep destructive confirmations, grading inputs, file previews and error messages
+focused on their task without mascot reactions. No guilty/sad score reactions.
 
 ## Reusing the artwork
 

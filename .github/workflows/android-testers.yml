@@ -1,0 +1,132 @@
+name: Android tester release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: What changed and what members should test
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-tester-release
+  cancel-in-progress: false
+
+jobs:
+  distribute:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      FIREBASE_APP_ID: '1:510027281592:android:d5fe55ef9e03116a04704d'
+      FIREBASE_PROJECT_ID: filo-app-1a2a5
+      TESTER_GROUP: filo-members
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+
+      - name: Prepare signing and release notes
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FILO_KEYSTORE_BASE64 }}
+          KEY_PROPERTIES: ${{ secrets.FILO_KEY_PROPERTIES }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          for name in ('KEYSTORE_BASE64', 'KEY_PROPERTIES'):
+              if not os.environ.get(name):
+                  raise SystemExit(f'Missing GitHub secret for {name}; see CI_CD.md.')
+          folder = Path('android/signing')
+          folder.mkdir(parents=True, exist_ok=True)
+          key = folder / 'filo-testers.jks'
+          key.write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'], validate=True))
+          key.chmod(0o600)
+          properties = Path('android/key.properties')
+          properties.write_text(os.environ['KEY_PROPERTIES'], encoding='utf-8')
+          properties.chmod(0o600)
+          build = 1000 + int(os.environ['GITHUB_RUN_NUMBER'])
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write(f'BUILD_NUMBER={build}\n')
+          Path('tester-release-notes.txt').write_text(
+              f'Build {build}\nCommit {os.environ["GITHUB_SHA"][:7]}\n\n'
+              + os.environ['RELEASE_NOTES'], encoding='utf-8')
+          PY
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build signed Android APK
+        run: flutter build apk --release --build-number="$BUILD_NUMBER"
+
+      - name: Save APK for download
+        uses: actions/upload-artifact@v4
+        with:
+          name: filo-android-${{ env.BUILD_NUMBER }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Prepare distribution authentication
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          raw = os.environ.get('SERVICE_ACCOUNT_JSON')
+          if not raw:
+              raise SystemExit('Missing FIREBASE_SERVICE_ACCOUNT_JSON secret; see CI_CD.md.')
+          data = json.loads(raw)
+          if data.get('type') != 'service_account' or data.get('project_id') != os.environ['FIREBASE_PROJECT_ID']:
+              raise SystemExit('Distribution credentials must be a service account for the Filo Firebase project.')
+          credentials = Path(os.environ['RUNNER_TEMP']) / 'filo-distribution.json'
+          credentials.write_text(raw, encoding='utf-8')
+          credentials.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write(f'GOOGLE_APPLICATION_CREDENTIALS={credentials}\n')
+          PY
+
+      - name: Distribute to members
+        run: |
+          firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+            --app "$FIREBASE_APP_ID" \
+            --project "$FIREBASE_PROJECT_ID" \
+            --groups "$TESTER_GROUP" \
+            --release-notes-file tester-release-notes.txt \
+            --non-interactive
+          printf '### Filo tester release\nBuild: %s\nTester group: %s\n' "$BUILD_NUMBER" "$TESTER_GROUP" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove signing and authentication files
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          for path in (Path('android/key.properties'), Path('android/signing/filo-testers.jks'),
+                       Path(os.environ['RUNNER_TEMP']) / 'filo-distribution.json'):
+              path.unlink(missing_ok=True)
+          PY

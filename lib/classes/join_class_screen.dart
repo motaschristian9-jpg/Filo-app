@@ -49,6 +49,7 @@ class _JoinClassScreenState extends State<JoinClassScreen> {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final id = data['classId'];
       if (id is! String || id.isEmpty) throw const _JoinError('Could not join. Please try again.');
+      showMascotSuccess(context, 'Class joined');
       Navigator.pop(context, id);
     } on _JoinError catch (error) {
       if (mounted) setState(() => _error = error.message);

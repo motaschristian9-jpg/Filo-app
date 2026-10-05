@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../onboarding/design.dart';
+import '../onboarding/illustrations.dart';
 import 'author_cache.dart';
 import 'material_repository.dart';
 import 'supabase_file_storage.dart';
@@ -165,14 +166,18 @@ class _PostSubmissionsState extends State<PostSubmissions> {
         attachments.add({for (final key in ['kind', 'url', 'fileName', 'storagePath', 'size']) key: draft[key]});
       }
       if (!active) return;
-      await FirebaseFirestore.instance.runTransaction((tx) async {
+      final committed = await FirebaseFirestore.instance.runTransaction<bool>((tx) async {
         final old = (await tx.get(ref)).data();
-        if (old != null && old['status'] != 'editing') return;
+        if (old != null && old['status'] != 'editing') return false;
         tx.set(ref, {'studentId': widget.uid, 'attachments': attachments, 'status': 'pending',
           'submittedAt': old?['submittedAt'] ?? FieldValue.serverTimestamp(),
           'firstSubmittedAt': old?['firstSubmittedAt'] ?? old?['submittedAt'] ?? FieldValue.serverTimestamp()});
+        return true;
       });
-      if (active) setState(() => _drafts = null);
+      if (active) {
+        setState(() => _drafts = null);
+        if (committed) showMascotSuccess(context, 'Work submitted');
+      }
     } catch (error) { if (active) setState(() => _error = error is MaterialStorageException
       ? error.message : 'Could not confirm submission. Check your connection and retry.'); }
     finally { if (mounted) setState(() => _busy = false); }
